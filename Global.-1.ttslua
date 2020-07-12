@@ -197,7 +197,6 @@ function startGame()
     end
   end
 
-
   print('KILL ME')
   -- Pull the cards identified in roles into the roleSorting deck
   local sortingZone = Entities.zones.roleSorting
@@ -205,27 +204,38 @@ function startGame()
   local roleDeck = findDeck(Entities.zones.role)
   print('Decks found')
   prettyPrint(roles, 'roles')
+  local count = 0
   for _, role in pairs(roles) do
     prettyPrint(role, _)
     for _, guid in pairs(role) do
       if(roleDeck ~=  nil) then
-        print('Taking card...'..type(roleDeck))
-        roleDeck.takeObject({
-          guid = guid,
-          position = sortingZone.getPosition(),
-          smooth = false
-        })
-        print('Taking card OK')
+        print('Taking card...'..count)
+        if(count < 7) then
+          roleDeck.takeObject({
+            guid = guid,
+            position = sortingZone.getPosition(),
+            smooth = false
+          })
+          print('Taking card OK')
+        else
+          -- Need to wait a tick or else the card can't be interacted with
+          Timer.create({
+            identifier = "startGameMoveLastCard",
+            function_name = "startGameMoveLastCard",
+          })
+        end
+        
+        count = count + 1
       else
         print("Role deck is nil")
       end
     end
   end
 
-  print('KILL ME  2')
   Timer.create({
     identifier = "dealOutTheRoles",
     function_name = "dealSortedRoles",
+    delay = 1
   })
 
 end
@@ -307,6 +317,12 @@ function dealTeaCeremony(startingColor)
   end
 end
 
+-- Callback for startGame(), handles the 8th player edge case where the role deck is empty
+function startGameMoveLastCard()
+  local sortingZone = Entities.zones.roleSorting
+  local roleDeck = findDeck(Entities.zones.role)
+  roleDeck.setPosition(sortingZone.getPosition())
+end
 
 ------------ Utility Functions ------------
 
