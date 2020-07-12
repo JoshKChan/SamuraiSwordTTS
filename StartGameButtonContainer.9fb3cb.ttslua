@@ -1,0 +1,19 @@
+function onLoad()
+
+  self.createButton({
+    click_function = 'callStartGame',
+    function_owner = self,
+    label          = 'Start\nGame',
+    position       = {0,16,-3.5},
+    rotation       = {0,0,0},
+    -- scale          = {0.6,0.6,0.6},
+    width          = 3200,
+    height         = 3200,
+    font_size      = 1000,
+    tooltip        = 'Start the game',
+  })
+end
+
+function callStartGame(obj, color)
+  Global.call('startGame', color)
+end

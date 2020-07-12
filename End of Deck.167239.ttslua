@@ -1,0 +1,44 @@
+function onLoad()
+  self.createButton({
+    click_function = 'callDrawCard',
+    function_owner = self,
+    label          = 'Draw',
+    position       = {0,13,-2.5},
+    rotation       = {0,0,0},
+    scale          = {0.6,0.6,0.6},
+    width          = 2400,
+    height         = 500,
+    font_size      = 375,
+    tooltip        = 'Draws 1 card.',
+  })
+
+  self.createButton({
+    click_function = 'callRevealCard',
+    function_owner = self,
+    label          = 'Reveal',
+    position       = {0,13,2.5},
+    rotation       = {0,0,0},
+    scale          = {0.6,0.6,0.6},
+    width          = 2400,
+    height         = 500,
+    font_size      = 375,
+    tooltip        = 'Reveals 1 card.',
+  })
+
+end
+
+function callDrawCard(obj, color)
+  params = {
+    button = "draw",
+    player = color,
+  }
+  Global.call('drawCard', params)
+end
+
+function callRevealCard(obj, color)
+  params = {
+    button = "reveal",
+    player = color,
+  }
+  Global.call('revealCard', params)
+end

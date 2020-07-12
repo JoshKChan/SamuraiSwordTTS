@@ -1,0 +1,515 @@
+--[[ Lua code. See documentation: https://api.tabletopsimulator.com/ --]]
+
+--[[ The onLoad event is called after the game save finishes loading. --]]
+
+function createRoleDistribution(numShogun, numSamurai, numRonin, numNinja) 
+  return  {
+    shogun = numShogun,
+    samurai = numSamurai,
+    ronin = numRonin,
+    ninja = numNinja
+  }
+end
+
+Guids = {
+  decks = {
+    draw = "1a8c42",
+    character = "06c6d4",
+    role = "429698"
+  },
+  zones = {
+    draw = "34f5d6",
+    discard = "e2a9aa",
+    character = "ae41de",
+    role = "de718f",
+    roleSorting = "dbca7e",
+    playerRed = "a32d33",
+    playerGreen = "0ce078",
+    playerTeal = "190702",
+    playerBlue = "f0e50a",
+    playerPurple = "2cc63b",
+    playerPink = "0a1923",
+    playerWhite = "52235e",
+    playerYellow = "397b08",
+  },
+  controls = {
+    startGameButton = "9fb3cb",
+    debugButton = "8373e5"
+  },
+  templates = {
+    playerPlate = "104c89"
+  }
+}
+Entities = {}
+
+Rotations = {
+  Normal = {0, 180, 0},
+  Flipped = {0, 180, 180}
+}
+
+-- Colours clockwise from Red
+Colors = {
+  [1] = 'Red',
+  [2] = 'Green',
+  [3] = 'Teal',
+  [4] = 'Blue',
+  [5] = 'Purple',
+  [6] = 'Pink',
+  [7] = 'Yellow',
+  [8] = 'White',
+}
+
+RoleDistributions = {
+  [3] = createRoleDistribution(1, 0, 0, 2),
+  [4] = createRoleDistribution(1, 1, 0, 2),
+  [5] = createRoleDistribution(1, 1, 1, 2),
+  [6] = createRoleDistribution(1, 1, 1, 3),
+  [7] = createRoleDistribution(1, 2, 1, 3),
+  [8] = createRoleDistribution(1, 2, 2, 3),
+}
+
+CardDealDistributions = {
+  [1] = 4,
+  [2] = 5,
+  [3] = 5,
+  [4] = 6,
+  [5] = 6,
+  [6] = 7,
+  [7] = 7,
+  [8] = 7,
+}
+
+function onLoad()
+  --[[ print('onLoad!') --]]
+
+  loadEntities()
+  -- prettyPrint(Entities, "Entities")
+
+  for label, deck in pairs(Entities.decks) do
+    deck.randomize();
+  end
+
+  Debug.pingTable(0, 0, 0)
+end
+
+function drawCard(params)
+  local deck = findDeck(Entities.zones.draw)
+  if deck == nil then
+    resetMainDeck()
+  else
+      deck.deal(1,params.player)
+  end
+end
+
+function dealCardTo(playerColor, count)
+  local deck = findDeck(Entities.zones.draw)
+  local discardDeck = findDeck(Entities.zones.discard)
+  print('dealCardTo..'..playerColor..'..'..count)
+
+  -- -- Old implementation
+  deck = findDeck(Entities.zones.draw)
+  deck.deal(count, playerColor)
+
+  -- for i = 1, count do
+  --   print('pow')
+  --   if deck == nil then
+  --     -- resetMainDeck()
+  --     local discardDeck = findDeck(Entities.zones.discard)
+  --   end
+  --   if (discardDeck == nil) then
+  --       print('UH OH SPAGHETTIO');
+  --   else
+  --     print('from draw')
+  --     deck.deal(1, playerColor)
+  --   end
+  -- end
+
+end
+
+function revealCard(params)
+  local drawPile = findDeck(Entities.zones.draw)
+  if drawPile == nil then
+    resetMainDeck()
+  else
+    if drawPile and drawPile.tag == "Card" then
+      drawPile.setRotation(Rotations.Normal)
+      drawPile.setPositionSmooth(Entities.zones.discard.getPosition(),false,true)
+    else
+      local discardDeckPos = { position = Entities.zones.discard.getPosition() }
+      topCard = drawPile.takeObject(discardDeckPos)
+      topCard.setRotation(Rotations.Normal)
+    end
+  end
+end
+
+function resetMainDeck()
+  local discard = findDeck(Entities.zones.discard)
+  if discard == nil then
+      printToAll("Both Discard and Draw decks are empty")
+  else
+    printToAll("Everyone Loses 1 Honor Point")
+    discard.setRotation(Rotations.Flipped)
+    discard.randomize()
+    discard.setPositionSmooth(Entities.zones.draw.getPosition(),false,true)
+  end
+end
+
+
+function findDeck(zone)
+  -- print('findDeck()')
+  local objectsInZone = zone.getObjects()
+  local foundCard = nil
+  -- print('findDeck() loop')
+  -- prettyPrint(objectsInZone)
+  for k, v in pairs(objectsInZone) do
+    -- print('findDeck() loop -- ' .. k)
+    if (v.tag == 'Card') then
+      foundCard = v
+    elseif (v.tag == 'Deck') then
+    -- print('findDeck() end inner')
+      return v
+    end
+  end
+  -- print('findDeck() end outer')
+  return foundCard;
+end
+
+function startGame()
+  local playerList = Player.getPlayers()
+  local playerCount = Table.length(playerList)
+  local roleDistribution = RoleDistributions[playerCount]
+
+  -- Initialize roles list
+  local roles = {}
+  for k, v in pairs(roleDistribution) do
+    roles[k] = {}
+  end
+
+  -- For each card in the role deck...
+  local roleDeckContents = Entities.decks.role.getObjects()
+  for k, cardRef in pairs(roleDeckContents) do
+    local roleName = cardRef.name
+    if(roleDistribution[roleName]) then
+      local currentRoleCount = Table.length(roles[roleName])
+      if(currentRoleCount < roleDistribution[roleName]) then
+        Table.push(roles[roleName], cardRef.guid)
+      end
+    end
+  end
+
+
+  print('KILL ME')
+  -- Pull the cards identified in roles into the roleSorting deck
+  local sortingZone = Entities.zones.roleSorting
+  print('DECKSSSS')
+  local roleDeck = findDeck(Entities.zones.role)
+  print('Decks found')
+  prettyPrint(roles, 'roles')
+  for _, role in pairs(roles) do
+    prettyPrint(role, _)
+    for _, guid in pairs(role) do
+      if(roleDeck ~=  nil) then
+        print('Taking card...'..type(roleDeck))
+        roleDeck.takeObject({
+          guid = guid,
+          position = sortingZone.getPosition(),
+          smooth = false
+        })
+        print('Taking card OK')
+      else
+        print("Role deck is nil")
+      end
+    end
+  end
+
+  print('KILL ME  2')
+  Timer.create({
+    identifier = "dealOutTheRoles",
+    function_name = "dealSortedRoles",
+  })
+
+end
+
+
+function dealSortedRoles(params) 
+  local sortingZone = Entities.zones.roleSorting
+  local sortingDeck = findDeck(sortingZone)
+  if(sortingDeck ~= nil) then
+    sortingDeck.deal(1)
+    dealCharacters()
+    hideEntity(Entities.controls.startGameButton)
+  else
+    print("Sorting deck is nil, reeeee")
+  end
+end
+
+function dealCharacters() 
+  local characterDeck = findDeck(Entities.zones.character)
+  if(characterDeck ~= nil) then
+    characterDeck.deal(2)
+  else
+    print("Character deck is nil, reeeee")
+  end
+end
+
+function dealStartingHands(startingColor)
+  print('dealStartingHands')
+
+  local playerColors = Table.map(Player.getPlayers(), 
+    function (p)
+      return p.color
+    end)
+  local presentColors = Set.intersection(Colors, playerColors)
+  presentColors = CircularLinkedList.from(presentColors)
+  presentColors = CircularLinkedList.shiftToValue(presentColors, startingColor)
+  local i = 1
+  local cardsToDeal = 4
+  CircularLinkedList.tap(presentColors, Table.length(playerColors), function(x)
+    cardsToDeal = CardDealDistributions[i]
+    -- print('FUCK MY LIFE: ', cardsToDeal)
+    print('Dealing..'..cardsToDeal..'..to..'..x)
+    dealCardTo(x, cardsToDeal)
+    i = i + 1
+  end)
+end
+
+
+function hideEntity(entity) 
+  local pos  = entity.getPosition()
+  entity.setPositionSmooth({
+    pos.x, pos.y + 500, pos.z
+  })
+end
+
+function dealTeaCeremony(startingColor)
+  local playerColors = Table.map(Player.getPlayers(), 
+    function (p)
+      return p.color
+    end)
+  local presentColors = Set.intersection(Colors, playerColors)
+  presentColors = CircularLinkedList.from(presentColors)
+  presentColors = CircularLinkedList.shiftToValue(presentColors, startingColor)
+  if(presentColors ~= nil) then
+
+    dealCardTo(startingColor, 2)
+    CircularLinkedList.tap(presentColors, Table.length(playerColors), function(x)
+      dealCardTo(x, 1)
+    end)
+
+    -- local cardsToDealCount = Table.length(playerColor) + 2
+    -- local deck = findDeck(Entities.zones.draw)
+    -- local discardDeck = findDeck(Entities.zones.discard)
+    -- local cardsInDrawDeckCount = deck.getQuantity()
+    -- print('Cards left in draw deck--'..cardsInDrawDeckCount)
+
+  else
+    print('oh no, nil')
+  end
+end
+
+
+------------ Utility Functions ------------
+
+Table = {
+  length = function (table) 
+      local count = 0
+        for _ in pairs(table) do
+          count = count + 1
+        end
+      return count
+    end
+}
+
+Table.push = function (table, item)
+  local length = Table.length(table)
+  table[length + 1] = item
+end
+
+Table.includes = function (source, query)
+  for k, v in pairs(source) do
+    if(v  == query) then
+      return true
+    end
+  end
+  return false
+end
+
+Table.keyof = function (source, query)
+  for k, v in pairs(source) do
+    if(v  == query) then
+      return k
+    end
+  end
+  return nil
+end
+
+Table.map = function (source, fn)
+  local out = {}
+  for k, v in pairs(source) do
+    out[k] = fn(v)
+  end
+  return out
+end
+
+
+Set = {}
+
+-- Returns the intersection between two tables, one layer deep
+Set.intersection = function(a, b)
+  local out = {}
+  local i = 1
+  for k, v in pairs(a) do
+    if(Table.includes(b, v)) then
+      out[i] = v
+      i = i + 1
+    end
+  end
+  return out
+end
+
+CircularLinkedList = {}
+
+CircularLinkedList.newNode = function(obj) 
+  return {
+    value = obj
+  }
+end
+
+CircularLinkedList.from = function(source)
+  local out = {}
+  local prev = nil
+  for i, v in ipairs(source) do
+    out[i] = CircularLinkedList.newNode(v)
+    print('Created-->'..i..out[i].value)
+    if(prev ~= nil) then
+      -- print('Set Prev-->'..i..prev.value)
+      out[i].prev = prev
+      prev.next = out[i]
+    end
+    prev = out[i]
+  end
+  if(prev ~= nil) then 
+    -- print('Set Prev-->'..out[1].value..'- as -'..prev.value)
+    out[1].prev = prev
+    prev.next = out[1]
+  end
+  return out[1] or nil
+end
+
+CircularLinkedList.shiftToValue = function(source, query)
+  local start = source
+  local next = start
+  while (next ~= nil) do
+    if(next.value == query) then
+      -- print('match for '..query)
+      return next
+    end
+    next = next.next
+    if(next == start) then
+      return nil
+    end
+  end
+  return nil
+end
+
+-- From @start, run @fn on each node for @count nodes
+CircularLinkedList.tap = function(start, count, fn) 
+  local curr = start
+  for i = 1, count do
+    fn(curr.value)
+    curr = curr.next
+  end
+end
+
+
+-- Load Entities from those in Guids
+function loadEntities() 
+  for k, v in pairs(Guids) do
+    Entities[k] = {}
+    for ik, iv in pairs(v) do
+      Entities[k][ik] = getObjectFromGUID(iv)
+    end
+  end
+end
+
+function printObject(obj, indentLevel, objName) 
+  indentLevel = indentLevel or 1
+  local indentString = ""
+  for i = 0, indentLevel do
+    indentString = indentString .. "-"
+  end
+
+  if(objName ~= nil) then
+    print(objName)
+  end
+  if(type(obj) == "string") then
+    print(indentString, obj)
+  elseif (type(obj) == "table") then
+    for k, v in pairs(obj) do
+      if(type(v) == "table") then
+        printObject(k..": ", indentLevel)
+        printObject(v, indentLevel + 2)
+      elseif(type(v) == "string") then
+        print(indentString, k..": "..v)
+      else
+        print(indentString, k..": ".."{Object: "..type(v).."}")
+      end
+    end
+  else 
+    print(indentString, "{Object: "..type(obj).."}")
+  end
+end
+
+function prettyPrint(obj, label, root)
+  local root = root or label or ""
+
+  if(label ~= nil) then
+    print(label)
+  end
+
+  if(type(obj) == "string") then
+    print(root .. " : " .. "\"".. obj .. "\"")
+  elseif (type(obj) == "table") then
+    for k, v in pairs(obj) do
+      local rootString = (root .. "." .. k .. ":")
+      if(type(v) == "table") then
+        if(Table.length(v) > 0) then
+          prettyPrint(v, nil, root .. "." .. k)
+        else
+          print(rootString .. "{}")
+        end
+      elseif(type(v) == "string") then
+        print(rootString .. "\"" .. v .. "\"")
+      elseif(type(v) == "number") then
+        print(rootString .. v)
+      else
+        print(rootString .. "{Object: "..type(v).."}")
+      end
+    end
+  else 
+    print('Pretty Print::Unkown Type: '..type(obj))
+  end
+end
+
+function debug(params)
+  dealTeaCeremony(params.player)
+end
+
+Debug = {}
+Debug.pingTable = function (x, y, z)
+  local xx = x
+  local yy = y
+  local zz = z
+  if (type(x) == 'table') then
+    xx = x.x or x[1]
+    yy = x.y or x[2]
+    zz = x.z or x[3]
+  end
+  local players = Player.getPlayers()
+  Player.getPlayers()[1].pingTable({xx, yy, zz})
+end
+
+--[[ The onUpdate event is called once per frame. --]]
+function onUpdate()
+    --[[ print('onUpdate loop!') --]]
+end

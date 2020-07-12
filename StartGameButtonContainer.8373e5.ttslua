@@ -1,0 +1,36 @@
+debugEnabled = true
+
+function onLoad()
+  if(debugEnabled) then 
+  self.createButton({
+    click_function = 'callDebug',
+    function_owner = self,
+    label          = 'Tea\nCeremony',
+    position       = {0,16,-3.5},
+    rotation       = {0,0,0},
+    -- scale          = {0.6,0.6,0.6},
+    width          = 3200,
+    height         = 3200,
+    font_size      = 1000,
+    tooltip        = 'Tea Ceremony',
+  })
+  else
+    hideEntity(self)
+  end
+end
+
+function callDebug(obj, color)
+  params = {
+    button = "reveal",
+    player = color,
+  }
+  Global.call('debug', params)
+  -- printToAll("i Am A sAmUrAiiiiii")
+end
+
+function hideEntity(entity) 
+  local pos  = entity.getPosition()
+  entity.setPositionSmooth({
+    pos.x, pos.y + 500, pos.z
+  })
+end

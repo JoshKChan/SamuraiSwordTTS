@@ -1,0 +1,30 @@
+function onLoad()
+  local buttonEnabled = true
+  if(buttonEnabled) then 
+  self.createButton({
+    click_function = 'callDebug',
+    function_owner = self,
+    label          = 'Deal\nStarting\nHands\nSHOGUN\nONLY',
+    position       = {0,16,-3.5},
+    rotation       = {0,0,0},
+    -- scale          = {0.6,0.6,0.6},
+    width          = 3200,
+    height         = 3200,
+    font_size      = 1000,
+    tooltip        = 'Deal starting hands',
+  })
+  else
+    hideEntity(self)
+  end
+end
+
+function callDebug(obj, color)
+  Global.call('dealStartingHands', color)
+end
+
+function hideEntity(entity) 
+  local pos  = entity.getPosition()
+  entity.setPositionSmooth({
+    pos.x, pos.y + 500, pos.z
+  })
+end
